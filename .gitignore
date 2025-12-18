@@ -1,0 +1,61 @@
+# AI Governance Repository - Git Ignore Rules
+
+# CRITICAL: Never commit secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets/
+credentials/
+*_secret*
+*_token*
+*_password*
+
+# Local configuration
+config/local.*
+config/*.local.*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# Node.js (if scripts added later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if scripts added later)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Backup files
+*.bak
+*.backup
+*_backup_*
+
+# Draft/work-in-progress (not ready for commit)
+drafts/
+wip/
+scratch/
