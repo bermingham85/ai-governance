@@ -80,6 +80,34 @@ This document defines the authoritative capabilities and boundaries for each sys
 - ❌ Tag releases
 - ❌ Manage GitHub issues or PRs
 
+### Claude Invocation Methods
+
+**Status:** AVAILABLE
+
+**Method 1: MCP Server (agent-agency-mcp)**
+- **Path:** `C:\Users\bermi\Projects\agent-agency-mcp`
+- **Protocol:** Model Context Protocol
+- **Function:** Claude Desktop → n8n workflows
+- **Verified:** Yes (active in Claude Desktop config)
+- **Use Case:** Agent delegation, workflow automation
+- **Limitations:** Requires n8n instance at http://192.168.50.246:5678
+
+**Method 2: Handover Templates (Manual)**
+- **Claude → Warp:** `ai-governance\prompts\handover_claude_to_warp.md`
+- **Warp → Claude:** `ai-governance\prompts\handover_warp_to_claude_review.md`
+- **Protocol:** Structured markdown handover
+- **Verified:** Yes (templates exist and documented)
+- **Use Case:** Design review, governance bootstrap, audit tasks
+- **Limitations:** Manual process (copy/paste to Claude interface)
+
+**Method 3: Direct API (Not Recommended)**
+- **Status:** EXISTS (archived in LLMBridgework)
+- **Function:** Direct Anthropic API calls
+- **Use Case:** Fallback only if Methods 1-2 unavailable
+- **Limitations:** Requires API key management, no MCP integration
+
+⚠️ **Preferred Method:** Use Method 2 (Handover Templates) for governance tasks. Use Method 1 (MCP) for operational agent tasks.
+
 ### Claude's Role in the Workflow
 
 1. **Receives requests** from users or handovers from Warp
@@ -87,6 +115,11 @@ This document defines the authoritative capabilities and boundaries for each sys
 3. **Creates WARP.md** handover documents with execution instructions
 4. **Hands off to Warp** for all execution tasks
 5. **Reviews results** when Warp reports back completion
+
+**Invocation from Warp:**
+- Warp uses handover template from `prompts/handover_warp_to_claude_review.md`
+- User manually submits handover to Claude Desktop
+- Claude responds with review findings and revised handover (if needed)
 
 ---
 
