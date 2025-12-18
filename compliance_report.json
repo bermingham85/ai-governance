@@ -1,0 +1,37 @@
+{
+  "issues_fixed": 3,
+  "timestamp": "2025-12-18T11:52:40.5574178+00:00",
+  "issues_found": 7,
+  "projects_scanned": 18,
+  "checks": {
+    "git_initialized": {
+      "failed": [],
+      "passed": 18
+    },
+    "warp_md_exists": {
+      "failed": [],
+      "passed": 18
+    },
+    "gitignore_protects_secrets": {
+      "failed": [
+        "ai-orchestrator-platform",
+        "CHAT_ANALYZER_MASTER",
+        "ComfyUI"
+      ],
+      "passed": 14
+    },
+    "secrets_in_commits": {
+      "failed": [],
+      "passed": 18
+    },
+    "warp_md_valid": {
+      "failed": [
+        "hourly-autopilot-system",
+        "midjourney-news-automation",
+        "n8n-qnap-updater",
+        "youtube-requirements-project"
+      ],
+      "passed": 14
+    }
+  }
+}
