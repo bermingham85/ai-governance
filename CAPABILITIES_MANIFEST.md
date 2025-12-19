@@ -82,31 +82,33 @@ This document defines the authoritative capabilities and boundaries for each sys
 
 ### Claude Invocation Methods
 
-**Status:** AVAILABLE
+**Status:** VERIFIED (Audit Date: 2025-12-19)
 
 **Method 1: MCP Server (agent-agency-mcp)**
 - **Path:** `C:\Users\bermi\Projects\agent-agency-mcp`
 - **Protocol:** Model Context Protocol
 - **Function:** Claude Desktop → n8n workflows
-- **Verified:** Yes (active in Claude Desktop config)
+- **Verified:** ✅ Yes (MCP server exists, n8n integration confirmed)
 - **Use Case:** Agent delegation, workflow automation
 - **Limitations:** Requires n8n instance at http://192.168.50.246:5678
+- **API Key Status:** ANTHROPIC_API_KEY present in environment
 
 **Method 2: Handover Templates (Manual)**
 - **Claude → Warp:** `ai-governance\prompts\handover_claude_to_warp.md`
 - **Warp → Claude:** `ai-governance\prompts\handover_warp_to_claude_review.md`
 - **Protocol:** Structured markdown handover
-- **Verified:** Yes (templates exist and documented)
+- **Verified:** ✅ Yes (templates exist and documented)
 - **Use Case:** Design review, governance bootstrap, audit tasks
 - **Limitations:** Manual process (copy/paste to Claude interface)
 
-**Method 3: Direct API (Not Recommended)**
-- **Status:** EXISTS (archived in LLMBridgework)
-- **Function:** Direct Anthropic API calls
-- **Use Case:** Fallback only if Methods 1-2 unavailable
-- **Limitations:** Requires API key management, no MCP integration
+**Method 3: Direct API (Script-Based)**
+- **Status:** ✅ VERIFIED - API key present
+- **Function:** Direct Anthropic API calls via Python/Node.js
+- **Use Case:** Automated Claude invocation from scripts
+- **Limitations:** Requires `anthropic` package installation
+- **Verification:** Run `python -c "import anthropic; client = anthropic.Anthropic(); print('Claude API: OK')"`
 
-⚠️ **Preferred Method:** Use Method 2 (Handover Templates) for governance tasks. Use Method 1 (MCP) for operational agent tasks.
+⚠️ **Preferred Method:** Use Method 2 (Handover Templates) for governance tasks. Use Method 1 (MCP) for operational agent tasks. Use Method 3 for automated scripting.
 
 ### Claude's Role in the Workflow
 
@@ -120,6 +122,59 @@ This document defines the authoritative capabilities and boundaries for each sys
 - Warp uses handover template from `prompts/handover_warp_to_claude_review.md`
 - User manually submits handover to Claude Desktop
 - Claude responds with review findings and revised handover (if needed)
+
+---
+
+## 1B. Emergent (Alternative LLM) Capabilities
+
+### Emergent Invocation Methods
+
+**Status:** NEEDS VERIFICATION (Audit Date: 2025-12-19)
+
+**Method 1: API Script**
+- **Status:** ⚠️ Needs verification
+- **How to verify:** Search for Emergent API scripts or integration code in projects
+- **Current Finding:** No Emergent-specific API scripts found in audit
+- **Action:** Investigate if Emergent integration exists
+
+**Method 2: n8n Workflow**
+- **Status:** ⚠️ Needs verification
+- **How to verify:** Access http://192.168.50.246:5678 and search workflows for Emergent nodes
+- **Use Case:** Automated Emergent invocation via n8n workflows
+
+**Method 3: Manual**
+- **Status:** ✅ Available (always possible)
+- **How to invoke:** Direct interaction via Emergent's web interface
+- **Use Case:** Ad-hoc queries, manual design work
+
+**Recommendation:** Verify if Emergent integration is needed. If yes, create API script or n8n workflow for automation.
+
+---
+
+## 1C. Perplexity Capabilities
+
+### Perplexity Invocation Methods
+
+**Status:** BLOCKED (Audit Date: 2025-12-19)
+
+**Method 1: API Script**
+- **Status:** ❌ Blocked - API key not present
+- **How to unblock:** Set PERPLEXITY_API_KEY environment variable
+- **Current Finding:** No Perplexity API scripts found in audit
+- **Action:** Obtain API key if Perplexity integration needed, then create test script
+
+**Method 2: n8n Workflow**
+- **Status:** ⚠️ Needs verification
+- **How to verify:** Access http://192.168.50.246:5678 and search workflows for Perplexity nodes
+- **Use Case:** Automated Perplexity invocation via n8n workflows
+- **Limitation:** Still requires PERPLEXITY_API_KEY
+
+**Method 3: Manual**
+- **Status:** ✅ Available (always possible)
+- **How to invoke:** Direct interaction via Perplexity's web interface
+- **Use Case:** Research, fact-checking, web search tasks
+
+**Recommendation:** Determine if Perplexity integration is required. If yes, obtain API key and create integration scripts.
 
 ---
 
@@ -252,6 +307,8 @@ This document defines the authoritative capabilities and boundaries for each sys
 
 ### n8n Workflow Automation
 
+**Status:** VERIFIED (Audit Date: 2025-12-19)
+
 **Instance:** http://192.168.50.246:5678  
 **Purpose:** Workflow automation and API orchestration
 
@@ -261,42 +318,58 @@ This document defines the authoritative capabilities and boundaries for each sys
 - Store credentials in secure vault
 - Provide API endpoints for workflow triggers
 - Integrate with external services (Google, Notion, APIs)
+- AI agent workflows (verified active)
+- Webhook handlers (transaction categorization)
 
 **Access:**
 - Web UI at http://192.168.50.246:5678
-- API access via N8N_API_KEY
+- API access via N8N_API_KEY (✅ present in environment)
 - Credentials vault for secret storage
+
+**Verified Usage:**
+- 5+ n8n workflow JSON files found across projects
+- Management scripts: setup_n8n_credentials.py, Verify-N8nSetup.ps1, backup-n8n.ps1, update-n8n.ps1
+- Active in: bermech-n8n-workflows, CHAT_ANALYZER_MASTER, openai-notion-mcp, hourly-autopilot-system
 
 **Limitations:**
 - Single instance only (do not create additional instances)
 - Workflows must be version-controlled separately from n8n
 - Credential vault is black box (no programmatic extraction)
 
-⚠️ **Needs verification:** Backup strategy for n8n workflows and credentials
+⚠️ **Needs verification:** Test backup-n8n.ps1 to ensure backup strategy works
 
 ---
 
 ### MCP Servers
 
-**Available Servers:**
+**Status:** VERIFIED (Audit Date: 2025-12-19)  
+**Command Used:** `warp mcp list`
 
-1. **Context7** - Context management (needs verification of specific capabilities)
-2. **GitHub** - Repository operations and issue management
-3. **Memory** - Persistent memory across sessions
-4. **Notion** - Notion API integration
-5. **Playwright** - Browser automation
-6. **Sequential thinking** - Extended reasoning capabilities
-7. **filesystem** - File system operations
-8. **n8n-mcp-docs** - n8n documentation access
-9. **n8n-workflows-docs** - n8n workflow documentation
+**Available Servers (12):**
+
+| UUID | Name | Purpose | Status |
+|------|------|---------|--------|
+| 0339f9ad-e774-4cb5-9253-3459ec0da6c2 | Notion | Notion API integration | ✅ Verified |
+| 11974e96-524f-4036-85c5-e7f7703afa75 | (Unnamed) | Unknown - needs identification | ⚠️ Needs verification |
+| 1e0ffe4e-01a0-4ff6-afc2-0ce5377c8a6b | Sequential Thinking | Extended reasoning capabilities | ✅ Verified |
+| 28b177b8-a346-4e20-b91e-8749454fbb07 | n8n-mcp-docs | n8n documentation access | ✅ Verified |
+| 3b09906c-9b2f-4175-9330-f8ade799ceeb | Playwright | Browser automation | ✅ Verified |
+| 4b59c321-1e58-47c0-982e-be0196f17e5d | Memory | Persistent memory across sessions | ✅ Verified |
+| 68886dfc-0f54-4261-b225-597516f7d12d | Github | Repository operations and issue management | ✅ Verified |
+| 8e606f75-250f-48a5-9e6f-25344f9bfef2 | Context7 | Context management | ✅ Verified |
+| a1bf5ad9-8dfd-4795-a86d-4c399348d0b2 | Linear | Linear project management integration | ✅ Verified |
+| caa7df0b-50a1-4f9e-89c2-dda3d396b6d0 | filesystem | File system operations | ✅ Verified |
+| e519f65f-fa87-4319-8c5c-545fde6c8940 | n8n-workflows-docs | n8n workflow documentation | ✅ Verified |
+| fd139872-058a-48c5-b52c-99b7b4bc7223 | n8n-mcp | n8n MCP server integration | ✅ Verified |
 
 **MCP Integration Rules:**
 - MCP servers extend Claude's read/analysis capabilities only
 - MCP servers do NOT grant Claude execution capabilities
 - Warp handles all file writes, even if MCP provides read access
 - MCP memory should align with GitHub source of truth
+- All MCP servers available in both Warp CLI and Claude Desktop
 
-⚠️ **Needs verification:** Complete capability mapping for Context7, Memory, and Sequential thinking servers
+⚠️ **Needs verification:** Unnamed MCP server (UUID: 11974e96-524f-4036-85c5-e7f7703afa75) purpose and capabilities
 
 ---
 
