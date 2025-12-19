@@ -318,11 +318,163 @@ The following zones are NEVER accessible to any AI system:
 
 ---
 
+## RULE 16 — ERROR ANALYSIS & RESOLUTION PROTOCOL (COMPULSORY)
+
+Error handling is a **routed process**, not an improvisation.
+
+**Core Principle:** The agent that detects an error is NOT automatically the agent that fixes it.
+
+### Mandatory Rules
+
+- The detecting agent MUST NOT attempt unlimited fixes
+- Errors must be classified and routed to the best-suited platform
+- Repeated attempts without new information are **FORBIDDEN**
+- Token-efficient resolution is mandatory
+- Maximum 2 fix attempts without new information
+
+### Error Lifecycle (No Skipping)
+
+Every error follows these stages:
+
+1. **DETECT** - Identify what failed
+2. **CLASSIFY** - Assign to category (A-E below)
+3. **ROUTE** - Hand to best platform
+4. **RESOLVE** - Execute fix in correct system
+
+**Jumping from Detect → Resolve without Classification/Routing is FORBIDDEN.**
+
+### Error Classification (Pick ONE Only)
+
+**A) Build / Runtime Errors**
+- Compilation failures
+- Runtime exceptions
+- Missing dependencies
+- Package installation failures
+- Build tool errors
+
+**B) Logic / Architecture Errors**
+- Incorrect data flow
+- Broken assumptions
+- Unclear system boundaries
+- Design conflicts
+- Integration mismatches
+
+**C) UI / UX Errors**
+- Broken layouts
+- Confusing user flows
+- Inconsistent behaviour
+- Visual regressions
+- Accessibility issues
+
+**D) Tool / Integration Errors**
+- API failures (external services)
+- MCP tools not responding
+- n8n / webhook failures
+- Database connection issues
+- Authentication/authorization failures
+
+**E) Knowledge / Unknowns**
+- Missing documentation
+- Outdated information
+- Unclear external API behaviour
+- Undocumented system dependencies
+- Unknown error codes
+
+### Error Routing Matrix
+
+**A) Build / Runtime Errors**
+→ **Warp** (execution + logs analysis)
+→ Claude ONLY if architectural review required
+→ NEVER bypass by rewriting from scratch
+
+**B) Logic / Architecture Errors**
+→ **Claude** (root cause analysis + minimal fix plan)
+→ Warp executes approved fix
+→ NEVER let Warp guess architecture
+
+**C) UI / UX Errors**
+→ **Design AI** (Emergent/Claude for redesign)
+→ Warp applies approved diffs
+→ NEVER let execution system design UX
+
+**D) Tool / Integration Errors**
+→ **Warp** (diagnostics first)
+→ Claude for root-cause reasoning if needed
+→ **NEVER** bypass tool by replacing it without approval
+
+**E) Knowledge / Unknowns**
+→ **Research** (web search, documentation)
+→ Claude integrates findings into governance docs
+→ Warp applies fixes based on new knowledge
+
+### Attempt Limits (Hard Stop)
+
+**No agent may attempt the same fix more than 2 times without new information.**
+
+**If 2 attempts fail:**
+1. STOP immediately
+2. Escalate according to routing matrix
+3. Record findings in ERROR_LOG.md or issue tracker
+4. Wait for new information or different approach
+
+**Repeating the same fix hoping for different results is FORBIDDEN.**
+
+### Error Recording (Lightweight)
+
+When an error is resolved:
+
+**Must Record:**
+- Root cause (1-2 sentences)
+- Fix applied (1-2 sentences)
+- Platform that resolved it
+- Time/tokens spent
+
+**Recording Location (pick one):**
+- `docs/ERROR_LOG.md` (if project has one)
+- GitHub issue comment
+- Pull request comment
+- Commit message (detailed)
+
+**Purpose:** Prevent rediscovery and repeated token burn.
+
+### Violation Examples
+
+**FORBIDDEN:**
+- ❌ Warp detects build error, tries 5 different fixes without stopping
+- ❌ Claude debugging runtime logs instead of routing to Warp
+- ❌ Warp redesigning architecture because "it seems wrong"
+- ❌ Any agent brute-forcing solutions without classification
+- ❌ Repeating same fix 3+ times
+
+**CORRECT:**
+- ✅ Warp detects build error → tries 2 fixes → escalates to Claude with logs
+- ✅ Claude detects logic error → creates fix plan → hands to Warp
+- ✅ Warp diagnoses API failure → researches docs → applies fix
+- ✅ Unknown error → research → document → resolve
+
+### Token Efficiency
+
+This rule exists to **prevent token waste**:
+
+- Blind fix attempts: 1000-5000 tokens wasted
+- Proper classification + routing: 200-500 tokens
+- **Savings: 80-90% token reduction on error resolution**
+
+### Integration with Other Rules
+
+- Works with RULE 12 (role separation)
+- Enforces RULE 13 (handover protocol for errors)
+- Requires RULE 14 (no self-initiated fixes outside role)
+- Uses RULE 15 (automatic routing)
+
+---
+
 ## Version History
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 1.0.0 | 2025-12-18 | Initial RULE 12-15 implementation | Claude (designed) / Warp (committed) |
+| 1.1.0 | 2025-12-19 | Added RULE 16 (Error Analysis & Resolution) | Claude (designed) / Warp (committed) |
 
 ---
 
