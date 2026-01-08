@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "n8n-workflows": {
+      "transport": {
+        "type": "http",
+        "url": "http://localhost:5678/mcp-server/http"
+      },
+      "config": {
+        "apiKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYzg2NGFmZi1jYWQ4LTRkYjMtODZjMS1iMjRiM2VlNjRjMTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY2Mjg1MTY4fQ.tDS7CS12Rlb4ydcNvU7pVb_YX4G0uVmAaqTdz1CfF4w"
+      }
+    },
+    "warp-memory": {
+      "command": "node",
+      "args": ["C:\\Users\\bermi\\Projects\\warp-memory-mcp\\dist\\index.js"],
+      "env": {
+        "MEMORY_API_URL": "http://localhost:8766"
+      }
+    },
+    "agent-agency": {
+      "command": "node",
+      "args": ["C:\\Users\\bermi\\Projects\\agent-agency-mcp\\dist\\index.js"],
+      "env": {
+        "N8N_URL": "http://localhost:5678",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYzg2NGFmZi1jYWQ4LTRkYjMtODZjMS1iMjRiM2VlNjRjMTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY2Mjg1MTY4fQ.tDS7CS12Rlb4ydcNvU7pVb_YX4G0uVmAaqTdz1CfF4w",
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_NAME": "agent_system",
+        "DB_USER": "postgres",
+        "DB_PASSWORD": "postgres_secure_2024"
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "name": "Memory Service Integration",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Agent Created Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 480],
+      "webhookId": "agent-created-hook"
+    },
+    {
+      "parameters": {
+        "url": "http://memory-service:8765/api/memory/events",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event_type\": \"agent_created\",\n  \"source\": \"n8n\",\n  \"data\": {\n    \"name\": \"{{ $json.agent_name }}\",\n    \"description\": \"{{ $json.description }}\",\n    \"workflow_id\": \"{{ $json.workflow_id }}\",\n    \"created_at\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "post-to-memory",
+      "name": "Post to Memory API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Agent logged to memory service\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "url": "http://memory-service:8765/api/memory",
+        "authentication": "none",
+        "requestMethod": "GET",
+        "options": {}
+      },
+      "id": "read-memory",
+      "name": "Read Current Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.data.tool_status.memory_service }}",
+              "operation": "contains",
+              "value2": "working"
+            }
+          ]
+        }
+      },
+      "id": "check-memory-status",
+      "name": "Memory Service Online?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Read Current Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent Created Webhook": {
+      "main": [
+        [
+          {
+            "node": "Post to Memory API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Memory API": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Current Memory": {
+      "main": [
+        [
+          {
+            "node": "Memory Service Online?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1",
+  "id": "memory-service-integration"
+}

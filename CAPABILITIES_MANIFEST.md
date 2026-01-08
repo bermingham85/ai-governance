@@ -183,7 +183,7 @@ This document defines the authoritative capabilities and boundaries for each sys
 ### What Warp CAN Do
 
 **File Operations:**
-- Read files from disk (within C:\Users\bermi\Projects\ scope)
+- Read files from disk (within C:\Users\bermi\Projects\ scope - SINGLE SOURCE OF TRUTH)
 - Write files to disk
 - Move and rename files
 - Delete files and directories
@@ -438,7 +438,13 @@ This document defines the authoritative capabilities and boundaries for each sys
 
 ### Project Scope Boundary
 
-**Authorized Scope:** `C:\Users\bermi\Projects\` (and subdirectories only)
+**Authorized Scope:** `C:\Users\bermi\Projects\` (SINGLE SOURCE OF TRUTH - all projects must reside here)
+
+**Rationale:**
+- Single location eliminates sync conflicts
+- Simplifies governance and access control
+- Prevents OneDrive/cloud sync interference with git operations
+- Aligns with MCP filesystem configuration
 
 **Operations outside this scope:**
 - Require explicit user confirmation
