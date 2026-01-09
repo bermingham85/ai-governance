@@ -1,0 +1,142 @@
+{
+  "name": "ChatGPT Context Provider",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "chatgpt-context",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "chatgpt-context"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8765/api/memory",
+        "authentication": "none",
+        "requestMethod": "GET",
+        "options": {}
+      },
+      "id": "fetch-memory",
+      "name": "Fetch Memory Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for ChatGPT\nconst memoryData = $input.first().json.data || {};\n\nreturn {\n  json: {\n    memory: memoryData,\n    governance_summary: {\n      rules: \"RULE 12-16 enforced\",\n      role: \"ChatGPT = Design/Advisory only (no execution)\",\n      handover_required: true,\n      n8n_instance: \"http://192.168.50.246:5678\"\n    },\n    current_goal: memoryData.current_goal || \"No active goal\",\n    active_projects: memoryData.active_projects || [],\n    tool_status: memoryData.tool_status || {},\n    last_updated: new Date().toISOString(),\n    status: \"success\"\n  }\n};"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle Memory Service unavailable\nreturn {\n  json: {\n    error: \"Memory Service unavailable\",\n    governance_summary: {\n      rules: \"RULE 12-16 enforced\",\n      role: \"ChatGPT = Design/Advisory only (no execution)\",\n      n8n_instance: \"http://192.168.50.246:5678\"\n    },\n    current_goal: \"Memory Service offline\",\n    active_projects: [],\n    tool_status: { memory_service: \"offline\" },\n    last_updated: new Date().toISOString(),\n    status: \"degraded\"\n  }\n};"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 480]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Memory Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Memory Service": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-09T03:26:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,189 @@
+{
+  "name": "Health Check Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "name": "Schedule Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get all active projects from governance\nconst projects = [\n  'animation-agent',\n  'chatgpt-mcp-server',\n  'hourly-autopilot-system',\n  'n8n-mcp'\n  // Add more projects here\n];\n\nreturn projects.map(project => ({\n  json: {\n    project_name: project,\n    project_path: `C:\\\\Users\\\\bermi\\\\Projects\\\\${project}`,\n    timestamp: new Date().toISOString()\n  }\n}));"
+      },
+      "name": "Get Active Projects",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/warp-health-check",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_path",
+              "value": "={{ $json.project_path }}"
+            },
+            {
+              "name": "project_name",
+              "value": "={{ $json.project_name }}"
+            },
+            {
+              "name": "checks",
+              "value": "=tests,linting,docker,dependencies"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Call Warp Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "notEqual",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "name": "Check If Issues Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate issues\nconst items = $input.all();\nconst issues = items.filter(item => item.json.status !== 'healthy');\n\nif (issues.length === 0) {\n  return [{\n    json: {\n      status: 'all_healthy',\n      total_projects: items.length,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst summary = {\n  status: 'issues_found',\n  total_projects: items.length,\n  projects_with_issues: issues.length,\n  issues: issues.map(i => ({\n    project: i.json.project_name,\n    failures: i.json.failures,\n    severity: i.json.severity || 'medium'\n  })),\n  timestamp: new Date().toISOString()\n};\n\nreturn [{ json: summary }];"
+      },
+      "name": "Aggregate Issues",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/create-github-issue",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "=Health Check Failed: {{ $json.projects_with_issues }} Projects"
+            },
+            {
+              "name": "body",
+              "value": "=## Health Check Report\n\n**Timestamp:** {{ $json.timestamp }}\n**Projects Checked:** {{ $json.total_projects }}\n**Issues Found:** {{ $json.projects_with_issues }}\n\n## Failed Projects:\n\n{{ $json.issues }}\n\n---\nAutomated by n8n Health Check Monitor"
+            },
+            {
+              "name": "labels",
+              "value": "=health-check,automated,needs-review"
+            }
+          ]
+        }
+      },
+      "name": "Create GitHub Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log healthy status to governance\nreturn [{\n  json: {\n    status: 'logged',\n    message: 'All projects healthy',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Log Healthy Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Schedule Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Get Active Projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Projects": {
+      "main": [
+        [
+          {
+            "node": "Call Warp Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Warp Health Check": {
+      "main": [
+        [
+          {
+            "node": "Check If Issues Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Issues Found": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Issues",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Healthy Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Issues": {
+      "main": [
+        [
+          {
+            "node": "Create GitHub Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  }
+}

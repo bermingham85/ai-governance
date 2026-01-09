@@ -1,0 +1,138 @@
+{
+  "name": "ChatGPT Rules Provider",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "chatgpt-rules",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "chatgpt-rules"
+    },
+    {
+      "parameters": {
+        "filePath": "C:\\Users\\bermi\\Projects\\ai-governance\\GLOBAL_AI_RULES.md",
+        "options": {}
+      },
+      "id": "read-rules-file",
+      "name": "Read Rules File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract key rules summary from GLOBAL_AI_RULES.md\nconst rulesContent = $input.first().binary.data.toString('utf8');\n\n// Parse key sections\nconst extractSection = (content, sectionName) => {\n  const regex = new RegExp(`## ${sectionName}[\\\\s\\\\S]*?(?=##|$)`, 'i');\n  const match = content.match(regex);\n  return match ? match[0].substring(0, 500) : '';\n};\n\nreturn {\n  json: {\n    rules_summary: {\n      rule_12: \"Strict role separation (Claude: design, Warp: execute, GitHub: source of truth)\",\n      rule_13: \"Mandatory handover protocol required between design and execution\",\n      rule_14: \"No self-initiated execution by design AIs\",\n      rule_15: \"Automatic task routing based on classification\",\n      rule_16: \"Error analysis & resolution protocol (2 attempt limit)\"\n    },\n    roles: {\n      chatgpt: \"Design/Advisory only - NEVER execute commands\",\n      warp: \"Execution only - NEVER redesign\",\n      github: \"Source of truth for all governance\"\n    },\n    n8n_instance: \"http://192.168.50.246:5678\",\n    protected_zones: [\n      \"Photos\",\n      \"Personal files\",\n      \"Fillmore/Filmora projects\"\n    ],\n    authorized_scope: \"C:\\\\Users\\\\bermi\\\\Projects\\\\\",\n    handover_required: true,\n    last_updated: new Date().toISOString(),\n    full_rules_url: \"https://github.com/[username]/ai-governance/blob/main/GLOBAL_AI_RULES.md\"\n  }\n};"
+      },
+      "id": "parse-rules",
+      "name": "Parse Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback rules if file unavailable\nreturn {\n  json: {\n    rules_summary: {\n      rule_12: \"Strict role separation enforced\",\n      rule_13: \"Mandatory handover protocol\",\n      rule_14: \"No self-initiated execution\",\n      rule_15: \"Automatic task routing\",\n      rule_16: \"Error resolution protocol\"\n    },\n    roles: {\n      chatgpt: \"Design/Advisory only - NEVER execute\",\n      warp: \"Execution only\",\n      github: \"Source of truth\"\n    },\n    n8n_instance: \"http://192.168.50.246:5678\",\n    status: \"fallback\",\n    message: \"Using cached rules summary\",\n    last_updated: new Date().toISOString()\n  }\n};"
+      },
+      "id": "fallback-rules",
+      "name": "Fallback Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-fallback",
+      "name": "Respond Fallback",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 480]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Rules File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rules File": {
+      "main": [
+        [
+          {
+            "node": "Parse Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Fallback Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Rules": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Rules": {
+      "main": [
+        [
+          {
+            "node": "Respond Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-09T03:26:00.000Z",
+  "versionId": "1"
+}

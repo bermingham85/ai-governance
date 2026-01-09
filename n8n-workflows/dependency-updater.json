@@ -1,0 +1,211 @@
+{
+  "name": "Automated Dependency Updater",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtHour": 2,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "name": "Schedule Weekly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get Python projects from governance\nconst pythonProjects = [\n  {\n    name: 'chatgpt-mcp-server',\n    path: 'C:\\\\Users\\\\bermi\\\\Projects\\\\chatgpt-mcp-server',\n    type: 'python'\n  },\n  {\n    name: 'hourly-autopilot-system',\n    path: 'C:\\\\Users\\\\bermi\\\\Projects\\\\hourly-autopilot-system',\n    type: 'python'\n  }\n  // Add more Python projects here\n];\n\nreturn pythonProjects.map(project => ({\n  json: {\n    ...project,\n    timestamp: new Date().toISOString()\n  }\n}));"
+      },
+      "name": "Get Python Projects",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/warp-execute",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_path",
+              "value": "={{ $json.path }}"
+            },
+            {
+              "name": "commands",
+              "value": "=[\n  \"uv run pip-audit\",\n  \"uv run pip list --outdated --format=json\"\n]"
+            }
+          ]
+        }
+      },
+      "name": "Check for Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse update results\nconst result = $json.result;\nconst outdated = JSON.parse(result.outdated_packages || '[]');\n\n// Classify updates\nconst securityPatches = outdated.filter(p => p.security_issue);\nconst minorUpdates = outdated.filter(p => !p.security_issue && p.update_type === 'minor');\nconst majorUpdates = outdated.filter(p => !p.security_issue && p.update_type === 'major');\n\nreturn [{\n  json: {\n    project_name: $json.name,\n    project_path: $json.path,\n    security_patches: securityPatches,\n    minor_updates: minorUpdates,\n    major_updates: majorUpdates,\n    has_security: securityPatches.length > 0,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Classify Updates",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_security }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Has Security Updates",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/warp-execute",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_path",
+              "value": "={{ $json.project_path }}"
+            },
+            {
+              "name": "commands",
+              "value": "={{ $json.security_patches.map(p => `uv add --dev ${p.name} --upgrade-package ${p.name}`).join('\\n') }}"
+            },
+            {
+              "name": "test_after",
+              "value": true
+            },
+            {
+              "name": "commit_if_success",
+              "value": true
+            },
+            {
+              "name": "commit_message",
+              "value": "=chore: security patch - upgrade {{ $json.security_patches.map(p => p.name).join(', ') }}\\n\\nAutomated security update\\n\\nCo-Authored-By: Warp <agent@warp.dev>"
+            }
+          ]
+        }
+      },
+      "name": "Apply Security Patches",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/create-github-issue",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "=Dependency Updates Available: {{ $json.project_name }}"
+            },
+            {
+              "name": "body",
+              "value": "=## Dependency Update Report\n\n**Project:** {{ $json.project_name }}\n**Timestamp:** {{ $json.timestamp }}\n\n### Minor Updates ({{ $json.minor_updates.length }})\n{{ $json.minor_updates.map(p => `- ${p.name}: ${p.version} → ${p.latest_version}`).join('\\n') }}\n\n### Major Updates ({{ $json.major_updates.length }})\n{{ $json.major_updates.map(p => `- ${p.name}: ${p.version} → ${p.latest_version}`).join('\\n') }}\n\n**Action Required:** Review and approve updates\n\n---\nAutomated by n8n Dependency Updater"
+            },
+            {
+              "name": "labels",
+              "value": "=dependencies,automated,{{ $json.major_updates.length > 0 ? 'breaking-change' : 'minor-update' }}"
+            }
+          ]
+        }
+      },
+      "name": "Create Update Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Schedule Weekly": {
+      "main": [
+        [
+          {
+            "node": "Get Python Projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Python Projects": {
+      "main": [
+        [
+          {
+            "node": "Check for Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Updates": {
+      "main": [
+        [
+          {
+            "node": "Classify Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Updates": {
+      "main": [
+        [
+          {
+            "node": "Has Security Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Security Updates": {
+      "main": [
+        [
+          {
+            "node": "Apply Security Patches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Update Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  }
+}

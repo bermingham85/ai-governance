@@ -1,0 +1,262 @@
+{
+  "name": "Error Log Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 23,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/warp-execute",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "command",
+              "value": "Get-ChildItem -Path C:\\Users\\bermi\\Projects -Recurse -Filter ERROR_LOG.md | Select-Object FullName"
+            },
+            {
+              "name": "shell",
+              "value": "powershell"
+            }
+          ]
+        }
+      },
+      "name": "Find All Error Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse error log paths\nconst logs = $json.result.split('\\n').filter(l => l.trim());\n\nreturn logs.map(logPath => ({\n  json: {\n    log_path: logPath.trim(),\n    project_name: logPath.split('\\\\').slice(-2, -1)[0],\n    timestamp: new Date().toISOString()\n  }\n}));"
+      },
+      "name": "Parse Log Paths",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/warp-execute",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "command",
+              "value": "=Get-Content '{{ $json.log_path }}' -Tail 20"
+            },
+            {
+              "name": "shell",
+              "value": "powershell"
+            }
+          ]
+        }
+      },
+      "name": "Read Recent Errors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse error log entries\nconst content = $json.result;\nconst lines = content.split('\\n');\n\n// Extract error entries (lines starting with ###)\nconst errors = [];\nlet currentError = null;\n\nfor (const line of lines) {\n  if (line.startsWith('### [')) {\n    if (currentError) {\n      errors.push(currentError);\n    }\n    // Extract date and title\n    const match = line.match(/###\\s*\\[([^\\]]*)\\]\\s*(.*)/);\n    currentError = {\n      date: match ? match[1] : '',\n      title: match ? match[2] : line,\n      details: ''\n    };\n  } else if (currentError && line.trim()) {\n    currentError.details += line + '\\n';\n  }\n}\n\nif (currentError) {\n  errors.push(currentError);\n}\n\nreturn [{\n  json: {\n    project_name: $json.project_name,\n    log_path: $json.log_path,\n    recent_errors: errors.slice(-5), // Last 5 errors\n    error_count: errors.length,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Parse Errors",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate all errors across projects\nconst allErrors = $input.all();\n\n// Identify patterns (same error title appearing multiple times)\nconst errorTitles = {};\nallErrors.forEach(item => {\n  item.json.recent_errors.forEach(error => {\n    const title = error.title.toLowerCase().trim();\n    if (!errorTitles[title]) {\n      errorTitles[title] = {\n        title: error.title,\n        count: 0,\n        projects: [],\n        dates: []\n      };\n    }\n    errorTitles[title].count++;\n    errorTitles[title].projects.push(item.json.project_name);\n    errorTitles[title].dates.push(error.date);\n  });\n});\n\n// Find recurring patterns (error appears 3+ times)\nconst patterns = Object.values(errorTitles)\n  .filter(e => e.count >= 3)\n  .sort((a, b) => b.count - a.count);\n\nreturn [{\n  json: {\n    total_projects: allErrors.length,\n    total_errors: allErrors.reduce((sum, item) => sum + item.json.error_count, 0),\n    recurring_patterns: patterns,\n    projects_with_errors: allErrors.map(item => ({\n      project: item.json.project_name,\n      error_count: item.json.error_count\n    })),\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Detect Patterns",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.recurring_patterns.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Has Patterns",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/claude-review",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "error_pattern_analysis"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify($json) }}"
+            },
+            {
+              "name": "request",
+              "value": "=Analyze these recurring error patterns and propose:\n1. Root cause analysis\n2. Template/rule improvements\n3. Migration guide for existing projects\n\n{{ $json.recurring_patterns.length }} patterns detected across {{ $json.total_projects }} projects."
+            }
+          ]
+        }
+      },
+      "name": "Request Claude Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/governance-log",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "error_aggregation"
+            },
+            {
+              "name": "status",
+              "value": "no_patterns"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $json.total_errors }} errors logged, no recurring patterns detected"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}"
+            }
+          ]
+        }
+      },
+      "name": "Log Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 400]
+    }
+  ],
+  "connections": {
+    "Schedule Daily": {
+      "main": [
+        [
+          {
+            "node": "Find All Error Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find All Error Logs": {
+      "main": [
+        [
+          {
+            "node": "Parse Log Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Log Paths": {
+      "main": [
+        [
+          {
+            "node": "Read Recent Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Recent Errors": {
+      "main": [
+        [
+          {
+            "node": "Parse Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Errors": {
+      "main": [
+        [
+          {
+            "node": "Detect Patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Patterns": {
+      "main": [
+        [
+          {
+            "node": "Has Patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Patterns": {
+      "main": [
+        [
+          {
+            "node": "Request Claude Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  }
+}
