@@ -1,0 +1,51 @@
+# docker-compose.dev.yml - Development environment
+# Use: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    container_name: ${PROJECT_NAME:-project}-dev
+    volumes:
+      # Mount project directory
+      - .:/workspace
+      # Mount Git config (read-only)
+      - ~/.gitconfig:/home/developer/.gitconfig:ro
+      # Mount SSH keys if needed (read-only)
+      # - ~/.ssh:/home/developer/.ssh:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=development
+    env_file:
+      - .env
+    ports:
+      - "${DEV_PORT:-8000}:8000"
+    command: sleep infinity
+    networks:
+      - dev-network
+
+  # Optional: Development database
+  dev-db:
+    image: postgres:15-alpine
+    container_name: ${PROJECT_NAME:-project}-dev-db
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-devpassword}
+      - POSTGRES_DB=${DB_NAME:-devdb}
+    ports:
+      - "${DEV_DB_PORT:-5433}:5432"
+    volumes:
+      - dev-db-data:/var/lib/postgresql/data
+    networks:
+      - dev-network
+
+volumes:
+  dev-db-data:
+    driver: local
+
+networks:
+  dev-network:
+    driver: bridge

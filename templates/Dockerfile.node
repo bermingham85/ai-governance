@@ -1,0 +1,38 @@
+# Dockerfile.node - Template for Node.js projects
+# Replace [NODE_VERSION] and [PROJECT_NAME] as needed
+
+FROM node:[NODE_VERSION]-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies (customize as needed)
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files first for better caching
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy project files
+COPY . .
+
+# Build if needed (uncomment for TypeScript projects)
+# RUN npm run build
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "process.exit(0)" || exit 1
+
+# Expose port (customize as needed)
+EXPOSE 3000
+
+# Run application
+CMD ["node", "index.js"]
