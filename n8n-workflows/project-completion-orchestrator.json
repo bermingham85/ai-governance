@@ -1,0 +1,237 @@
+{
+  "name": "Project Completion Orchestrator",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/warp-execute",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "command",
+              "value": "Get-ChildItem -Path C:\\Users\\bermi\\Projects -Directory | Where-Object { (Test-Path \"$($_.FullName)\\.git\") } | Select-Object Name, FullName, @{Name='HasWARP';Expression={Test-Path \"$($_.FullName)\\WARP.md\"}}, @{Name='HasREADME';Expression={Test-Path \"$($_.FullName)\\README.md\"}}"
+            },
+            {
+              "name": "shell",
+              "value": "powershell"
+            }
+          ]
+        }
+      },
+      "name": "Scan All Projects",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse project scan results\nconst output = $json.result;\nconst lines = output.split('\\n').filter(l => l.trim());\n\nconst projects = [];\nfor (let i = 2; i < lines.length; i++) {\n  const parts = lines[i].split(/\\s+/);\n  if (parts.length >= 4) {\n    projects.push({\n      name: parts[0],\n      path: parts[1],\n      has_warp: parts[2].toLowerCase() === 'true',\n      has_readme: parts[3].toLowerCase() === 'true'\n    });\n  }\n}\n\nreturn projects.map(p => ({ json: p }));"
+      },
+      "name": "Parse Projects",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/analyze-project-status",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "project_path",
+              "value": "={{ $json.path }}"
+            }
+          ]
+        }
+      },
+      "name": "Analyze Project Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Determine project completion status and priority\nconst project = $json;\n\n// Calculate completion percentage\nconst checks = {\n  has_warp: project.has_warp_md || false,\n  has_tests: project.has_tests || false,\n  has_docker: project.has_dockerfile || false,\n  has_ci: project.has_ci_cd || false,\n  has_docs: project.has_documentation || false,\n  passing_tests: project.tests_passing || false,\n  no_todos: !project.has_todos || false,\n  clean_git: project.git_status === 'clean'\n};\n\nconst completed = Object.values(checks).filter(v => v).length;\nconst total = Object.keys(checks).length;\nconst completion_pct = Math.round((completed / total) * 100);\n\n// Determine status\nlet status = 'incomplete';\nif (completion_pct === 100) status = 'complete';\nelse if (completion_pct >= 80) status = 'nearly_complete';\nelse if (completion_pct >= 50) status = 'in_progress';\nelse status = 'early_stage';\n\n// Calculate priority (higher = more important to complete)\nlet priority = 0;\nif (project.last_commit_days < 7) priority += 30; // Recently active\nif (project.has_warp_md) priority += 20; // Already governed\nif (project.tests_passing) priority += 20; // Working state\nif (completion_pct > 50) priority += 15; // Closer to done\nif (project.type === 'production') priority += 15; // Production priority\n\nreturn [{\n  json: {\n    ...project,\n    completion_checks: checks,\n    completion_pct,\n    status,\n    priority,\n    missing_items: Object.keys(checks).filter(k => !checks[k])\n  }\n}];"
+      },
+      "name": "Calculate Completion Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Sort projects by priority (highest first)\nconst allProjects = $input.all();\nconst sorted = allProjects\n  .sort((a, b) => b.json.priority - a.json.priority);\n\nreturn sorted;"
+      },
+      "name": "Sort by Priority",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "notEqual",
+              "value2": "complete"
+            }
+          ]
+        }
+      },
+      "name": "Filter Incomplete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.50.246:5678/webhook/claude-create-completion-plan",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "project_path",
+              "value": "={{ $json.path }}"
+            },
+            {
+              "name": "completion_pct",
+              "value": "={{ $json.completion_pct }}"
+            },
+            {
+              "name": "missing_items",
+              "value": "={{ JSON.stringify($json.missing_items) }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $json.status }}"
+            }
+          ]
+        }
+      },
+      "name": "Claude: Create Completion Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate completion summary report\nconst allProjects = $input.all();\n\nconst summary = {\n  total_projects: allProjects.length,\n  complete: allProjects.filter(p => p.json.status === 'complete').length,\n  nearly_complete: allProjects.filter(p => p.json.status === 'nearly_complete').length,\n  in_progress: allProjects.filter(p => p.json.status === 'in_progress').length,\n  early_stage: allProjects.filter(p => p.json.status === 'early_stage').length,\n  avg_completion: Math.round(allProjects.reduce((sum, p) => sum + p.json.completion_pct, 0) / allProjects.length),\n  top_priority: allProjects.slice(0, 5).map(p => ({\n    name: p.json.name,\n    completion: p.json.completion_pct + '%',\n    status: p.json.status,\n    priority: p.json.priority\n  }))\n};\n\nreturn [{ json: summary }];"
+      },
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1650, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Scan All Projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan All Projects": {
+      "main": [
+        [
+          {
+            "node": "Parse Projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Projects": {
+      "main": [
+        [
+          {
+            "node": "Analyze Project Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Project Status": {
+      "main": [
+        [
+          {
+            "node": "Calculate Completion Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Completion Status": {
+      "main": [
+        [
+          {
+            "node": "Sort by Priority",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort by Priority": {
+      "main": [
+        [
+          {
+            "node": "Filter Incomplete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Incomplete": {
+      "main": [
+        [
+          {
+            "node": "Claude: Create Completion Plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  }
+}
