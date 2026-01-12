@@ -14,10 +14,28 @@
 3. Add this rule:
 
 ```
-Before every task, load and reference:
-C:\Users\bermi\Projects\ai-governance\GLOBAL_AI_RULES.md
+Before every task, you MUST load and follow these governance documents:
 
-This file contains RULE 12-16 which MUST be followed.
+1. GLOBAL_AI_RULES.md: C:\Users\bermi\Projects\ai-governance\GLOBAL_AI_RULES.md
+   - Contains RULE 12-16 (role separation, error handling, handover protocols)
+   - MANDATORY compliance
+
+2. PROJECT_DECISION_MATRIX.md: C:\Users\bermi\Projects\ai-governance\guides\PROJECT_DECISION_MATRIX.md
+   - REQUIRED before creating any new project/repo
+   - Complete 8-step decision process
+   - Default bias: EXTEND existing repos
+
+3. PROJECT_REGISTRY.md: C:\Users\bermi\Projects\PROJECT_REGISTRY.md
+   - Check existing 34+ repositories before building anything
+   - Prevent duplicate functionality
+
+For ANY new project idea:
+- Search PROJECT_REGISTRY.md first
+- Run PROJECT_DECISION_MATRIX steps 1-8
+- Document decision in ADR
+- Update registry after creation
+
+Failing to check these documents before action is a CRITICAL violation.
 ```
 
 ### Alternative: Environment Variable
