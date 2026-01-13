@@ -98,16 +98,26 @@ This repository provides **Global Rules** for Warp's governance system:
 ```
 ai-governance/
 ├── README.md                              # This file
-├── .gitignore                            # Git protections
-├── GLOBAL_AI_RULES.md                    # RULE 12-15
-├── HANDOVER_PROTOCOL.md                  # Handover format
-├── CAPABILITIES_MANIFEST.md              # System capabilities
-├── SECRETS_POLICY.md                     # Secret handling
-├── SECRET_ROTATION_LOG.md                # Rotation tracking
-└── prompts/
-    ├── handover_claude_to_warp.md        # Execution handover template
-    ├── task_router.md                    # Task routing logic
-    └── handover_warp_to_claude_review.md # Review handover template
+├── PHASES_STATUS.md                       # Implementation progress tracker
+├── REQUIRED_GOVERNANCE_GUIDES.md          # Complete roadmap
+├── GLOBAL_AI_RULES.md                     # RULE 12-15 core rules
+├── ERROR_HANDLING_PROTOCOL.md             # Error classification
+├── guides/
+│   ├── PROJECT_DECISION_MATRIX.md         # New vs extend framework
+│   ├── HANDOVER_PROTOCOL.md               # AI handover procedures
+│   └── PLATFORM_DELEGATION_MATRIX.md      # Task routing + emergent handling
+├── standards/
+│   ├── DEFINITION_OF_DONE.md              # Task completion criteria
+│   ├── CODE_QUALITY_STANDARDS.md          # Quality metrics
+│   ├── TESTING_PROTOCOLS.md               # Testing requirements
+│   ├── PEER_REVIEW_CHECKLIST.md           # Code review standards
+│   ├── ERROR_LOGGING_STANDARD.md          # Logging requirements
+│   └── INCIDENT_RESPONSE_PLAYBOOK.md      # Production incidents
+├── scripts/
+│   ├── pre-flight-check.ps1               # Pre-commit validation
+│   └── profile-snippet.ps1                # PowerShell integration
+├── adr/                                    # Architecture Decision Records
+└── prompts/                                # Legacy prompt templates
 ```
 
 ---
